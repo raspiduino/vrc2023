@@ -246,6 +246,7 @@ void setClock() {
 
 void update_fw()
 {
+  setClock();
   Serial.println("\nUpdating from Github...");
   WiFiClientSecure client;
   client.setCACert(rootCACertificate);
