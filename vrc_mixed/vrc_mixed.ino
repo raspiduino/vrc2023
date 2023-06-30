@@ -478,6 +478,8 @@ void setup(void)
 }
 
 bool ps2_control = true;
+bool pov_control = false;
+int co = 16;
 
 void loop()
 {
@@ -489,77 +491,82 @@ void loop()
   Serial.print(",");
   Serial.println(ps2x.Analog(PSS_RY), DEC); // Y axis of the right joystick
 
-  // Default coefficient for driving
-  int co = 16;
-  if (ps2x.Button(PSB_R2)) {
+  // Coefficient for driving
+  if (ps2x.Button(PSB_BLUE)) {
     // Boost mode
     co = 30;
+  } else {
+    co = 16;
   }
 
-  // Left wheel control
-  if (ps2x.Analog(PSS_LY) < 127) {
-    // Forward
+  // Joystick drive mode
+  if (!pov_control) {
+    // Left wheel control
+    if (ps2x.Analog(PSS_LY) < 127) {
+      // Forward
 
-    // Motor
-    pwm.setPWM(left_1, 0, co * (128 - ps2x.Analog(PSS_LY)));
-    pwm.setPWM(left_2, 0, 0);
-
-    // Support servo
-    //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 0);
-  } else if (ps2x.Analog(PSS_LY) > 128) {
-    // Backward
-
-    // Motor
-    pwm.setPWM(left_1, 0, 0);
-    pwm.setPWM(left_2, 0, co * (ps2x.Analog(PSS_LY) - 128));
-
-    // Support servo
-    //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 180);
-  } else {
-    // Stop
-
-    // Motor
-    if (ps2_control) {
-      pwm.setPWM(left_1, 0, 0);
+      // Motor
+      pwm.setPWM(left_1, 0, co * (128 - ps2x.Analog(PSS_LY)));
       pwm.setPWM(left_2, 0, 0);
+
+      // Support servo
+      //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 0);
+    } else if (ps2x.Analog(PSS_LY) > 128) {
+      // Backward
+
+      // Motor
+      pwm.setPWM(left_1, 0, 0);
+      pwm.setPWM(left_2, 0, co * (ps2x.Analog(PSS_LY) - 128));
+
+      // Support servo
+      //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 180);
+    } else {
+      // Stop
+
+      // Motor
+      if (ps2_control) {
+        pwm.setPWM(left_1, 0, 0);
+        pwm.setPWM(left_2, 0, 0);
+      }
+
+      // Support servo
+      //pwm.setPWM(7, 0, 0);
     }
 
-    // Support servo
-    //pwm.setPWM(7, 0, 0);
-  }
+    // Right wheel control
+    if (ps2x.Analog(PSS_RY) < 127) {
+      // Forward
 
-  // Right wheel control
-  if (ps2x.Analog(PSS_RY) < 127) {
-    // Forward
-
-    // Motor
-    pwm.setPWM(right_1, 0, 0);
-    pwm.setPWM(right_2, 0, co * (128 - ps2x.Analog(PSS_RY)));
-
-    // Support servo
-    //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 180);
-  } else if (ps2x.Analog(PSS_RY) > 128) {
-    // Backward
-
-    // Motor
-    pwm.setPWM(right_1, 0, co * (ps2x.Analog(PSS_RY) - 128));
-    pwm.setPWM(right_2, 0, 0);
-
-    // Support servo
-    //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 0);
-  } else {
-    // Stop
-
-    // Motor
-    if (ps2_control) {
+      // Motor
       pwm.setPWM(right_1, 0, 0);
-      pwm.setPWM(right_2, 0, 0);
-    }
+      pwm.setPWM(right_2, 0, co * (128 - ps2x.Analog(PSS_RY)));
 
-    // Support servo
-    //pwm.setPWM(2, 0, 0);
+      // Support servo
+      //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 180);
+    } else if (ps2x.Analog(PSS_RY) > 128) {
+      // Backward
+
+      // Motor
+      pwm.setPWM(right_1, 0, co * (ps2x.Analog(PSS_RY) - 128));
+      pwm.setPWM(right_2, 0, 0);
+
+      // Support servo
+      //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 0);
+    } else {
+      // Stop
+
+      // Motor
+      if (ps2_control) {
+        pwm.setPWM(right_1, 0, 0);
+        pwm.setPWM(right_2, 0, 0);
+      }
+
+      // Support servo
+      //pwm.setPWM(2, 0, 0);
+    }
   }
 
+  // Intake 1
   if (ps2x.Button(PSB_L1)) {
     if (ps2x.Button(PSB_L2)) {
       pwm.setPWM(fintake_1, 0, 4095);
@@ -569,14 +576,15 @@ void loop()
       pwm.setPWM(fintake_2, 0, 4095);
     }
   } else {
-    if (ps2_control) {
+    if (ps2_control) {                                                                                           
       pwm.setPWM(fintake_1, 0, 0);
       pwm.setPWM(fintake_2, 0, 0);
     }
   }
 
+  // Intake 2
   if (ps2x.Button(PSB_R1)) {
-    if (ps2x.Button(PSB_L2)) {
+    if (ps2x.Button(PSB_R2)) {
       pwm.setPWM(bintake_1, 0, 4095);
       pwm.setPWM(bintake_2, 0, 0);
     } else {
@@ -597,11 +605,59 @@ void loop()
       if (ps2_control) pwm.setPWM(catapult, 0, 0);
     } else {
       // Turn it on
-      if (ps2x.Button(PSB_L2)) {
+      if (ps2x.Button(PSB_L2) || ps2x.Button(PSB_R2)) {
         pwm.setPWM(catapult, 0, 400);
       } else {
         pwm.setPWM(catapult, 0, 150);
       }
+    }
+  }
+
+  // POV up
+  if (ps2x.NewButtonState(PSB_PAD_UP)) {
+    Serial.println("New PSB_PAD_UP state");
+    if (!ps2x.Button(PSB_PAD_UP)) {
+      // Stop bot
+      if (ps2_control) {
+        Serial.println("Stop bot 0");
+        pwm.setPWM(right_1, 0, 0);
+        pwm.setPWM(right_2, 0, 0);
+        pwm.setPWM(right_1, 0, 0);
+        pwm.setPWM(right_2, 0, 0);
+        pov_control = false;
+      }
+    } else {
+      // Go forward
+      pov_control = true;
+      Serial.println("Go forward");
+      pwm.setPWM(left_1, 0, 2045);
+      pwm.setPWM(left_2, 0, 0);
+      pwm.setPWM(right_1, 0, 0);
+      pwm.setPWM(right_2, 0, 2045);
+    }
+  }
+  
+  // POV down
+  if (ps2x.NewButtonState(PSB_PAD_DOWN)) {
+    Serial.println("New PSB_PAD_DOWN state");
+    if (!ps2x.Button(PSB_PAD_DOWN)) {
+      // Stop bot
+      if (ps2_control) {
+        Serial.println("Stop bot 1");
+        pwm.setPWM(right_1, 0, 0);
+        pwm.setPWM(right_2, 0, 0);
+        pwm.setPWM(right_1, 0, 0);
+        pwm.setPWM(right_2, 0, 0);
+        pov_control = false;
+      }
+    } else {
+      // Go backward
+      pov_control = true;
+      Serial.println("Go backward");
+      pwm.setPWM(left_1, 0, 0);
+      pwm.setPWM(left_2, 0, 2045);
+      pwm.setPWM(right_1, 0, 2045);
+      pwm.setPWM(right_2, 0, 0); 
     }
   }
 
