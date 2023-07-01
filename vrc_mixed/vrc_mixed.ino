@@ -153,7 +153,7 @@ void DC_slider(Control *sender, int type)
   switch(sender->id){
   case 2:
   {
-    setPWM(8, 9, dir ,  val);
+    setPWM(8, 9, -dir ,  val);
     //setPWM(14, 15, dir,  val);
     break;
   }
@@ -348,6 +348,7 @@ void init_wifi()
 // pref variables
 int left_1, left_2, right_1, right_2, fintake_1, fintake_2, bintake_1, bintake_2;
 int catapult;
+int left_co, right_co;
 
 void pref_set_default(const char* key, int val) {
   if (pref.getInt(key, -1) == -1) {
@@ -370,6 +371,8 @@ void init_pref()
   pref_set_default("bintake_1", 12);
   pref_set_default("bintake_2", 13);
   pref_set_default("catapult", 2);
+  pref_set_default("left_co", 16);
+  pref_set_default("right_co", 16);
 
   // Read values
   left_1 = pref.getInt("left_1", 8);
@@ -381,6 +384,8 @@ void init_pref()
   bintake_1 = pref.getInt("bintake_1", 12);
   bintake_2 = pref.getInt("bintake_2", 13);
   catapult = pref.getInt("catapult", 2);
+  left_co = pref.getInt("left_co", 16);
+  right_co = pref.getInt("right_co", 16);
 }
 
 void setup(void)
@@ -411,6 +416,12 @@ void setup(void)
   // Setup pins for hardware enable/disable of WIFI (incase PS2 controller does not work)
   pinMode(25, INPUT_PULLUP);
   pinMode(32, INPUT_PULLUP);
+
+  // Print driving coefficient
+  Serial.print("Left coefficient: ");
+  Serial.println(left_co);
+  Serial.print("Right coefficient: ");
+  Serial.println(right_co);
 
   // ESPUI init
   uint16_t tab1 = ESPUI.addControl(ControlType::Tab, "", "DC Motor");
@@ -479,7 +490,6 @@ void setup(void)
 
 bool ps2_control = true;
 bool pov_control = false;
-int co = 16;
 
 void loop()
 {
@@ -492,77 +502,47 @@ void loop()
   Serial.println(ps2x.Analog(PSS_RY), DEC); // Y axis of the right joystick
 
   // Coefficient for driving
-  if (ps2x.Button(PSB_BLUE)) {
+  /*if (ps2x.Button(PSB_BLUE)) {
     // Boost mode
     co = 30;
   } else {
     co = 16;
-  }
+  }*/
 
   // Joystick drive mode
   if (!pov_control) {
     // Left wheel control
     if (ps2x.Analog(PSS_LY) < 127) {
       // Forward
-
-      // Motor
-      pwm.setPWM(left_1, 0, co * (128 - ps2x.Analog(PSS_LY)));
+      pwm.setPWM(left_1, 0, left_co * (128 - ps2x.Analog(PSS_LY)));
       pwm.setPWM(left_2, 0, 0);
-
-      // Support servo
-      //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 0);
     } else if (ps2x.Analog(PSS_LY) > 128) {
       // Backward
-
-      // Motor
       pwm.setPWM(left_1, 0, 0);
-      pwm.setPWM(left_2, 0, co * (ps2x.Analog(PSS_LY) - 128));
-
-      // Support servo
-      //if (ps2x.Button(PSB_L1)) pwm.setPWM(7, 0, 180);
+      pwm.setPWM(left_2, 0, left_co * (ps2x.Analog(PSS_LY) - 128));
     } else {
       // Stop
-
-      // Motor
       if (ps2_control) {
         pwm.setPWM(left_1, 0, 0);
         pwm.setPWM(left_2, 0, 0);
       }
-
-      // Support servo
-      //pwm.setPWM(7, 0, 0);
     }
 
     // Right wheel control
     if (ps2x.Analog(PSS_RY) < 127) {
       // Forward
-
-      // Motor
       pwm.setPWM(right_1, 0, 0);
-      pwm.setPWM(right_2, 0, co * (128 - ps2x.Analog(PSS_RY)));
-
-      // Support servo
-      //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 180);
+      pwm.setPWM(right_2, 0, right_co * (128 - ps2x.Analog(PSS_RY)));
     } else if (ps2x.Analog(PSS_RY) > 128) {
       // Backward
-
-      // Motor
-      pwm.setPWM(right_1, 0, co * (ps2x.Analog(PSS_RY) - 128));
+      pwm.setPWM(right_1, 0, right_co * (ps2x.Analog(PSS_RY) - 128));
       pwm.setPWM(right_2, 0, 0);
-
-      // Support servo
-      //if (ps2x.Button(PSB_L1)) pwm.setPWM(2, 0, 0);
     } else {
       // Stop
-
-      // Motor
       if (ps2_control) {
         pwm.setPWM(right_1, 0, 0);
         pwm.setPWM(right_2, 0, 0);
       }
-
-      // Support servo
-      //pwm.setPWM(2, 0, 0);
     }
   }
 
@@ -630,10 +610,10 @@ void loop()
       // Go forward
       pov_control = true;
       Serial.println("Go forward");
-      pwm.setPWM(left_1, 0, 2045);
+      pwm.setPWM(left_1, 0, 128 * left_co);
       pwm.setPWM(left_2, 0, 0);
       pwm.setPWM(right_1, 0, 0);
-      pwm.setPWM(right_2, 0, 2045);
+      pwm.setPWM(right_2, 0, 128 * right_co);
     }
   }
   
@@ -655,10 +635,57 @@ void loop()
       pov_control = true;
       Serial.println("Go backward");
       pwm.setPWM(left_1, 0, 0);
-      pwm.setPWM(left_2, 0, 2045);
-      pwm.setPWM(right_1, 0, 2045);
+      pwm.setPWM(left_2, 0, 128 * left_co);
+      pwm.setPWM(right_1, 0, 128 * right_co);
       pwm.setPWM(right_2, 0, 0); 
     }
+  }
+
+  // Changing drive coefficient
+  if (ps2x.Button(PSB_PINK)) {
+    // Left wheel
+    if (ps2x.NewButtonState(PSB_PAD_LEFT)) {
+      // Decrease
+      if (ps2x.Button(PSB_PAD_LEFT)) {
+        // If button is pressed
+        // If left_co > 1 -> decrease
+        if (left_co > 1) left_co--;
+      }
+    } else if (ps2x.NewButtonState(PSB_PAD_RIGHT)) {
+      // Increase
+      if (ps2x.Button(PSB_PAD_RIGHT)) {
+        // If button is pressed
+        // If left_co > 1 -> increase
+        if (left_co < 30) left_co++;
+      }
+    }
+
+    // Update new value
+    pref.putInt("left_co", left_co);
+    Serial.print("left_co: ");
+    Serial.println(left_co);
+  } else if (ps2x.Button(PSB_RED)) {
+    // Right wheel
+    if (ps2x.NewButtonState(PSB_PAD_LEFT)) {
+      // Decrease
+      if (ps2x.Button(PSB_PAD_LEFT)) {
+        // If button is pressed
+        // If right_co > 1 -> decrease
+        if (right_co > 1) right_co--;
+      }
+    } else if (ps2x.NewButtonState(PSB_PAD_RIGHT)) {
+      // Increase
+      if (ps2x.Button(PSB_PAD_RIGHT)) {
+        // If button is pressed
+        // If right_co < 30 -> increase
+        if (right_co < 30) right_co++;
+      }
+    }
+
+    // Update new value
+    pref.putInt("right_co", right_co);
+    Serial.print("right_co: ");
+    Serial.println(right_co);
   }
 
   // Check for WIFI turn on / off request from GPIO and PS2
@@ -678,6 +705,12 @@ void loop()
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
     ps2_control = true;
+
+    // Reset default driving coefficient
+    pref.putInt("left_co", 16);
+    pref.putInt("right_co", 16);
+    left_co = 16;
+    right_co = 16;
   }
 
   // Process DNS request
